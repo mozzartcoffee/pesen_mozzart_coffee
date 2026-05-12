@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mozzart Coffee Digital Order</title>
+    <!-- Import Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Import Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600;1,700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Konfigurasi Tailwind untuk Font Custom -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Poppins', 'sans-serif'],
+                        serif: ['Playfair Display', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Animasi sederhana */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+
+        /* Pengaturan Khusus untuk Cetak (Print) */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #recap-section, #recap-section * {
+                visibility: visible;
+            }
+            #recap-section {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                margin: 0;
+                padding: 0;
+                box-shadow: none;
+                border: none;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-stone-50 text-stone-900 font-sans pb-24 lg:pb-0">
+
+    <!-- Container Utama Aplikasi -->
+    <div id="app"></div>
+
+    <!-- Gunakan module untuk import Supabase -->
+    <script type="module">
+        import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+        // --- 1. SETUP ICON ---
+        window.icons = {
+            coffee: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v2"/><path d="M14 2v2"/><path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"/><path d="M6 2v2"/></svg>`,
+            package: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-600"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>`,
+            cart: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-600"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>`,
+            trash: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>`,
+            chevronRight: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>`,
+            creditCard: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>`,
+            info: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-600 shrink-0 mt-1"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>`,
+            checkCircle: `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>`,
+            printer: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>`
+        };
+
+        // --- 2. STATE APLIKASI (Data Default) ---
+        window.getTomorrowDate = function() {
+            const tmr = new Date();
+            tmr.setDate(tmr.getDate() + 1);
+            return tmr.toISOString().split('T')[0];
+        }
+
+        window.menuItems = [
+            { id: 1, name: "Mozzart Signature Cold Brew", price: 35000, stock: 12, category: "Coffee", image: "☕", desc: "Cold brew signature dengan sentuhan rahasia Mozzart." },
+            { id: 2, name: "Classic Caffe Latte", price: 28000, stock: 20, category: "Coffee", image: "🥛", desc: "Perpaduan espresso dan susu segar yang lembut." },
+            { id: 3, name: "Velvet Espresso", price: 22000, stock: 35, category: "Coffee", image: "⚡", desc: "Espresso murni dengan crema yang tebal." },
+            { id: 4, name: "Caramel Macchiato", price: 32000, stock: 5, category: "Coffee", image: "🍯", desc: "Manisnya karamel berpadu dengan kopi yang pekat." },
+            { id: 5, name: "Croissant Almond", price: 25000, stock: 8, category: "Pastry", image: "🥐", desc: "Croissant renyah dengan isian dan taburan almond." },
+            { id: 6, name: "Matcha Zen Latte", price: 30000, stock: 15, category: "Non-Coffee", image: "🌿", desc: "Matcha premium khas Jepang yang menenangkan." },
+        ];
+        
+        window.cart = [];
+        window.view = 'landing';
+        window.paymentMethod = 'qris';
+        window.orderType = 'instant';
+        window.preorderDate = window.getTomorrowDate();
+        window.orderDetail = null;
+        window.orders = []; // Menyimpan rekap pesanan dari database
+
+        window.buyerName = ''; 
+        window.buyerAddress = '';
+        window.deliveryTime = '';
+
+        window.appLogoUrl = ''; // State untuk URL Logo kustom
+        window.adminWa = '6281234567890';
+        window.aboutText = 'Di Mozzart Coffee, kami percaya bahwa menyeduh kopi adalah sebuah seni layaknya menggubah sebuah simfoni. Kami menggunakan biji kopi pilihan terbaik untuk menghadirkan harmoni rasa yang sempurna di setiap tegukannya.';
+        window.instantText = 'Kopi akan segera dibuat dan dikirimkan setelah pembayaran sukses (selama stok produk ready).';
+        window.poText = 'Solusi untuk pemesanan esok hari atau dalam jumlah besar. Wajib order minimal H-1.';
+        window.editingMenuId = null;
+        
+        // State Filter Rekap
+        window.adminFilterDate = ''; 
+
+        // --- FUNGSI BANTUAN: UPLOAD GAMBAR ---
+        window.fileToBase64 = function(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            });
+        };
+
+        // --- 3. INIT CLOUD DATABASE (SUPABASE) ---
+        // PENTING: Ganti URL dan KEY di bawah ini dengan milik Supabase Anda!
+        const SUPABASE_URL = 'https://qystpyfjpuhvljowgaui.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5c3RweWZqcHVodmxqb3dnYXVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1NTY0NDMsImV4cCI6MjA5NDEzMjQ0M30.DYXRBYdpQcP0fosMtzw1RlQdAGJlEJrtcLx3W5Ac45M';
+        
+        let supabase = null;
+        try {
+            if (SUPABASE_URL !== 'MASUKKAN_URL_SUPABASE_ANDA_DISINI') {
+                supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            } else {
+                console.warn("⚠️ Supabase belum dikonfigurasi. Menggunakan mode lokal sementara.");
+            }
+        } catch (error) {
+            console.error("Gagal inisialisasi Supabase:", error);
+        }
+
+        async function initSupabaseData() {
+            if (!supabase) return;
+
+            try {
+                // 1. Sinkronisasi Data Menu
+                const { data: menuData, error: menuErr } = await supabase.from('menu').select('*').order('id', { ascending: true });
+                
+                if (menuData && menuData.length > 0) {
+                    window.menuItems = menuData;
+                    window.render();
+                } else if (menuData && menuData.length === 0) {
+                    await supabase.from('menu').insert(window.menuItems);
+                }
+
+                // 2. Sinkronisasi Pengaturan Admin (Logo, WA, dll)
+                const { data: settingData, error: settingErr } = await supabase.from('settings').select('*').eq('id', 'store_settings').single();
+                if (settingData) {
+                    window.appLogoUrl = settingData.logo || '';
+                    window.adminWa = settingData.wa || window.adminWa;
+                    window.aboutText = settingData.about || window.aboutText;
+                    window.instantText = settingData.instant || window.instantText;
+                    window.poText = settingData.po || window.poText;
+                    window.render();
+                }
+
+                // Ambil Data Rekap Pesanan
+                const { data: orderData } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
+                if (orderData) {
+                    window.orders = orderData;
+                }
+
+                // 3. Fallback Realtime (Polling) karena WebSocket diblokir di Canvas
+                setInterval(async () => {
+                    try {
+                        let isDataChanged = false;
+
+                        const { data: menuData } = await supabase.from('menu').select('*').order('id', { ascending: true });
+                        if (menuData && JSON.stringify(menuData) !== JSON.stringify(window.menuItems)) {
+                            window.menuItems = menuData;
+                            isDataChanged = true;
+                        }
+
+                        const { data: settingData } = await supabase.from('settings').select('*').eq('id', 'store_settings').single();
+                        if (settingData) {
+                            if (window.appLogoUrl !== (settingData.logo || '') ||
+                                window.adminWa !== (settingData.wa || window.adminWa) ||
+                                window.aboutText !== (settingData.about || window.aboutText) ||
+                                window.instantText !== (settingData.instant || window.instantText) ||
+                                window.poText !== (settingData.po || window.poText)) {
+                                
+                                window.appLogoUrl = settingData.logo || '';
+                                window.adminWa = settingData.wa || window.adminWa;
+                                window.aboutText = settingData.about || window.aboutText;
+                                window.instantText = settingData.instant || window.instantText;
+                                window.poText = settingData.po || window.poText;
+                                isDataChanged = true;
+                            }
+                        }
+
+                        const { data: newOrderData } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
+                        if (newOrderData && JSON.stringify(newOrderData) !== JSON.stringify(window.orders)) {
+                            window.orders = newOrderData;
+                            isDataChanged = true;
+                        }
+                        
+                        if (isDataChanged && (['landing', 'about', 'menu', 'success'].includes(window.view) || (window.view === 'admin' && !window.editingMenuId))) {
+                            window.render();
+                        }
+                    } catch (err) {
+                        // Abaikan error saat polling
+                    }
+                }, 5000); 
+
+            } catch (error) {
+                console.error("Error fetching data dari Supabase:", error);
+            }
+        }
+
+        initSupabaseData();
+
+        // --- 4. FUNGSI LOGIKA APLIKASI ---
+        window.formatRupiah = function(angka) {
+            return 'Rp ' + parseInt(angka).toLocaleString('id-ID');
+        }
+
+        window.getTotalHarga = function() {
+            return window.cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+        }
+
+        window.getTotalItem = function() {
+            return window.cart.reduce((acc, item) => acc + item.quantity, 0);
+        }
+
+        window.setView = function(newView) {
+            window.view = newView;
+            window.render();
+            window.scrollTo(0, 0);
+        };
+
+        window.handleBuyerLogin = function(e) {
+            e.preventDefault();
+            const nameInput = document.getElementById('loginBuyerName').value;
+            if (nameInput.trim() !== '') {
+                window.buyerName = nameInput;
+                window.setView('about');
+            }
+        };
+
+        window.logoutBuyer = function() {
+            window.buyerName = '';
+            window.setView('landing');
+        };
+
+        window.handleAdminLogin = function(e) {
+            e.preventDefault();
+            const user = document.getElementById('adminUser').value;
+            const pass = document.getElementById('adminPass').value;
+            if (user === 'admin' && pass === 'admin123') {
+                window.setView('admin');
+            } else {
+                alert('Username atau Password salah!');
+            }
+        };
+
+        window.saveAdminSettings = async function(e) {
+            e.preventDefault();
+            const newWa = document.getElementById('setWa').value;
+            const newAbout = document.getElementById('setAbout').value;
+            const newInstant = document.getElementById('setInstant').value;
+            const newPo = document.getElementById('setPo').value;
+            
+            const fileInput = document.getElementById('setLogoFile');
+            let newLogo = window.appLogoUrl; 
+            
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                if (file.size > 2000000) return alert('Ukuran file logo maksimal 2MB!');
+                newLogo = await window.fileToBase64(file);
+            }
+
+            try {
+                if(supabase) {
+                    const { error } = await supabase.from('settings').upsert({
+                        id: 'store_settings',
+                        wa: newWa, about: newAbout, instant: newInstant, po: newPo, logo: newLogo
+                    });
+                    if (error) throw error;
+                    alert('Pengaturan berhasil disimpan ke Supabase Database!');
+                } else {
+                    window.appLogoUrl = newLogo;
+                    window.adminWa = newWa;
+                    window.aboutText = newAbout;
+                    window.instantText = newInstant;
+                    window.poText = newPo;
+                    alert('Tersimpan di memori lokal (Supabase belum di-setup).');
+                    window.render();
+                }
+            } catch (err) {
+                alert('Gagal menyimpan: ' + err.message);
+            }
+        };
+
+        window.editMenu = function(id) {
+            window.editingMenuId = id;
+            window.render();
+        };
+
+        window.cancelEditMenu = function() {
+            window.editingMenuId = null;
+            window.render();
+        };
+
+        window.saveMenu = async function(id) {
+            const name = document.getElementById(`edit-name-${id}`).value;
+            const price = parseInt(document.getElementById(`edit-price-${id}`).value);
+            const stock = parseInt(document.getElementById(`edit-stock-${id}`).value);
+            const desc = document.getElementById(`edit-desc-${id}`).value;
+
+            const existingItem = window.menuItems.find(i => i.id === id);
+            
+            const fileInput = document.getElementById(`edit-image-file-${id}`);
+            let image = existingItem.image; 
+            
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                if (file.size > 2000000) return alert('Ukuran gambar maksimal 2MB!');
+                image = await window.fileToBase64(file);
+            }
+
+            try {
+                if(supabase) {
+                    const { error } = await supabase.from('menu').upsert({
+                        id: Number(id), name, price, stock, image, desc, category: existingItem.category
+                    });
+                    if (error) throw error;
+                    window.cancelEditMenu();
+                } else {
+                    if(existingItem) {
+                        existingItem.name = name; existingItem.price = price; 
+                        existingItem.stock = stock; existingItem.image = image; existingItem.desc = desc;
+                    }
+                    window.cancelEditMenu();
+                }
+            } catch (err) {
+                alert('Gagal menyimpan menu: ' + err.message);
+            }
+        };
+
+        // --- FUNGSI RESET & PRINT ---
+        window.setAdminFilterDate = function(e) {
+            window.adminFilterDate = e.target.value;
+            window.render();
+        };
+
+        window.printRekap = function() {
+            window.print();
+        };
+
+        // --- FITUR BARU: Menghapus Satu Pesanan Spesifik ---
+        window.deleteOrder = async function(orderId) {
+            if (!confirm('Apakah Anda yakin ingin menghapus pesanan ini? Aksi ini tidak bisa dibatalkan.')) return;
+
+            try {
+                if (supabase) {
+                    // Tambahkan .select() agar kita bisa mendeteksi jika Supabase diam-diam menolak penghapusan
+                    const { data, error } = await supabase.from('orders').delete().eq('id', orderId).select();
+                    if (error) {
+                        console.error("Database error details:", error);
+                        throw error;
+                    }
+                    // Jika data kosong, berarti RLS Policy di Supabase menolak aksi DELETE ini
+                    if (!data || data.length === 0) {
+                        throw new Error("Akses ditolak oleh Supabase. Pastikan RLS Policy (Enable Delete) untuk tabel 'orders' sudah dibuat.");
+                    }
+                }
+
+                // Update memori lokal seketika agar layar langsung ter-refresh
+                window.orders = window.orders.filter(order => order.id !== orderId);
+                window.render();
+            } catch (err) {
+                console.error("Delete Failed:", err);
+                alert('Gagal menghapus pesanan: ' + err.message);
+            }
+        };
+
+        window.resetOrders = async function() {
+            const msg = window.adminFilterDate 
+                ? `Apakah Anda yakin ingin menghapus/mereset SEMUA data pesanan pada tanggal ${window.adminFilterDate}?`
+                : `Apakah Anda yakin ingin menghapus/mereset SEMUA riwayat pesanan?\n\n(Aksi ini akan menghapus permanen data di server Supabase dan tidak bisa dibatalkan!)`;
+
+            if (!confirm(msg)) return;
+
+            try {
+                if (supabase) {
+                    if (window.adminFilterDate) {
+                        // Cari spesifik ID yang harus dihapus untuk tanggal yang difilter
+                        const idsToDelete = window.orders.filter(order => {
+                            const tzOffset = new Date(order.created_at).getTimezoneOffset() * 60000;
+                            const localDate = new Date(new Date(order.created_at) - tzOffset).toISOString().split('T')[0];
+                            return localDate === window.adminFilterDate;
+                        }).map(o => o.id);
+
+                        if (idsToDelete.length > 0) {
+                            const { data, error } = await supabase.from('orders').delete().in('id', idsToDelete).select();
+                            if (error) throw error;
+                            if (!data || data.length === 0) throw new Error("Akses ditolak oleh Supabase. Pastikan RLS Policy (Enable Delete) sudah aktif.");
+                        }
+                    } else {
+                        // Menghapus SEMUA riwayat pesanan (Menggunakan kondisi bypass untuk hapus seluruh row)
+                        const { data, error } = await supabase.from('orders').delete().neq('id', 'DUMMY_RESET_ID').select();
+                        if (error) throw error;
+                        if (window.orders.length > 0 && (!data || data.length === 0)) {
+                             throw new Error("Akses ditolak oleh Supabase. Pastikan RLS Policy (Enable Delete) sudah aktif.");
+                        }
+                    }
+                }
+
+                // Update memori lokal seketika agar layar langsung ter-refresh
+                if (window.adminFilterDate) {
+                    window.orders = window.orders.filter(order => {
+                        const tzOffset = new Date(order.created_at).getTimezoneOffset() * 60000;
+                        const localDate = new Date(new Date(order.created_at) - tzOffset).toISOString().split('T')[0];
+                        return localDate !== window.adminFilterDate;
+                    });
+                } else {
+                    window.orders = []; // Bersihkan layar secara total
+                }
+
+                alert('Data pesanan berhasil direset!');
+                window.render();
+            } catch (err) {
+                console.error("Reset Failed:", err);
+                alert('Gagal mereset data: ' + err.message);
+            }
+        };
+
+        // --- FUNGSI KERANJANG ---
+        window.setPaymentMethod = function(method) { window.paymentMethod = method; window.render(); };
+        window.setOrderType = function(type) { window.orderType = type; window.render(); };
+        window.setPreorderDate = function(event) { window.preorderDate = event.target.value; window.render(); };
+
+        window.checkIfCartHasPO = function() {
+            return window.cart.some(cartItem => {
+                const originalMenu = window.menuItems.find(m => m.id === cartItem.id);
+                return !originalMenu || originalMenu.stock < cartItem.quantity;
+            });
+        };
+
+        window.addToCart = function(id) {
+            const itemMenu = window.menuItems.find(i => i.id === id);
+            if (!itemMenu) return;
+            
+            const existingItem = window.cart.find(i => i.id === id);
+            if (existingItem) {
+                existingItem.quantity += 1;
+            } else {
+                window.cart.push({ ...itemMenu, quantity: 1 });
+            }
+            window.render();
+        };
+
+        window.removeFromCart = function(id) {
+            const index = window.cart.findIndex(i => i.id === id);
+            if (index !== -1) {
+                if (window.cart[index].quantity === 1) {
+                    window.cart.splice(index, 1);
+                } else {
+                    window.cart[index].quantity -= 1;
+                }
+            }
+            window.render();
+        };
+
+        window.handleCheckout = async function() {
+            window.buyerAddress = document.getElementById('inputAddress').value;
+            window.deliveryTime = document.getElementById('inputTime').value;
+
+            if (window.cart.length === 0) return alert('Keranjang kosong!');
+            if (!window.buyerAddress.trim() || !window.deliveryTime) return alert('Mohon lengkapi alamat dan jam pengiriman!');
+            
+            if (window.orderType === 'instant') {
+                for (const cartItem of window.cart) {
+                    const itemMenu = window.menuItems.find(i => i.id === cartItem.id);
+                    if (itemMenu) {
+                        const newStock = Math.max(0, itemMenu.stock - cartItem.quantity);
+                        if(supabase) {
+                            await supabase.from('menu').update({ stock: newStock }).eq('id', itemMenu.id);
+                        } else {
+                            itemMenu.stock = newStock; 
+                        }
+                    }
+                }
+            }
+            
+            window.orderDetail = {
+                items: [...window.cart],
+                total: window.getTotalHarga(),
+                id: "MZZ-" + Math.floor(Math.random() * 1000000),
+                time: new Date().toLocaleTimeString('id-ID'),
+                type: window.orderType,
+                date: window.orderType === 'preorder' ? window.preorderDate : 'Hari Ini',
+                address: window.buyerAddress,
+                deliveryTime: window.deliveryTime
+            };
+
+            const dbOrderRecord = {
+                id: window.orderDetail.id,
+                buyer_name: window.buyerName,
+                items: window.orderDetail.items,
+                total: window.orderDetail.total,
+                type: window.orderDetail.type,
+                delivery_date: window.orderDetail.date,
+                address: window.orderDetail.address,
+                delivery_time: window.orderDetail.deliveryTime,
+                payment_method: window.paymentMethod,
+                created_at: new Date().toISOString()
+            };
+
+            if (supabase) {
+                await supabase.from('orders').insert([dbOrderRecord]);
+            } else {
+                window.orders.unshift(dbOrderRecord); 
+            }
+            
+            window.cart = [];
+            window.view = 'success';
+            window.render();
+        };
+
+        window.generateWALink = function() {
+            let msg = `Halo Admin Mozzart Coffee, saya ingin memesan:\n\n`;
+            msg += `*Order ID:* ${window.orderDetail.id}\n`;
+            msg += `*Nama:* ${window.buyerName}\n`;
+            msg += `*Alamat Pengiriman:* ${window.orderDetail.address}\n`;
+            msg += `*Tipe Pesanan:* ${window.orderDetail.type === 'instant' ? 'Langsung Kirim' : 'Pre-Order (' + window.orderDetail.date + ')'}\n`;
+            msg += `*Jam Pengiriman:* ${window.orderDetail.deliveryTime}\n`;
+            msg += `*Pembayaran:* ${window.paymentMethod === 'qris' ? 'QRIS' : 'Virtual Account Bank'}\n\n`;
+            msg += `*Detail Pesanan:*\n`;
+            window.orderDetail.items.forEach(i => {
+                msg += `- ${i.quantity}x ${i.name} (${window.formatRupiah(i.price * i.quantity)})\n`;
+            });
+            msg += `\n*Total Tagihan:* ${window.formatRupiah(window.orderDetail.total)}\n\n`;
+            msg += `Terima kasih! Mohon konfirmasinya.`;
+            
+            return `https://wa.me/${window.adminWa}?text=${encodeURIComponent(msg)}`;
+        };
+
+        // --- 5. FUNGSI RENDER TAMPILAN (UI) ---
+        window.renderLandingView = function() {
+            const logoHtml = window.appLogoUrl 
+                ? `<img src="${window.appLogoUrl}" alt="Logo Mozzart" class="w-32 h-32 object-cover rounded-full shadow-2xl mb-8 animate-bounce bg-white border-4 border-amber-600">`
+                : `<div class="bg-amber-600 p-8 rounded-full text-white mb-8 animate-bounce shadow-lg shadow-amber-600/30">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v2"/><path d="M14 2v2"/><path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"/><path d="M6 2v2"/></svg>
+                   </div>`;
+
+            return `
+                <div class="min-h-screen flex flex-col items-center justify-center bg-stone-900 text-white p-6 animate-fade-in absolute inset-0 z-50">
+                    ${logoHtml}
+                    <h1 class="text-5xl md:text-7xl font-bold tracking-tight italic font-serif mb-4 text-center">MOZZART</h1>
+                    <h2 class="text-2xl md:text-3xl tracking-widest text-amber-500 mb-12 text-center font-medium">COFFEE</h2>
+                    <div class="flex flex-col gap-4 w-full max-w-xs">
+                        <button onclick="setView('loginBuyer')" class="bg-amber-600 hover:bg-amber-500 text-white font-bold py-4 px-8 rounded-full text-lg transition-all shadow-xl flex items-center justify-center gap-2">
+                            Login Pembeli
+                        </button>
+                        <button onclick="setView('loginAdmin')" class="bg-transparent border-2 border-stone-500 hover:border-white text-stone-300 hover:text-white font-bold py-3 px-8 rounded-full transition-all flex items-center justify-center gap-2">
+                            Login Admin
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.renderLoginBuyerView = function() {
+            return `
+                <div class="min-h-screen flex items-center justify-center bg-stone-900 p-6 absolute inset-0 z-50 animate-fade-in">
+                    <div class="bg-white p-8 md:p-10 rounded-3xl max-w-md w-full shadow-2xl text-stone-900">
+                        <h2 class="text-3xl font-bold mb-2 font-serif italic">Halo, Sobat Kopi!</h2>
+                        <p class="text-stone-500 mb-8">Siapa nama kamu?</p>
+                        <form onsubmit="handleBuyerLogin(event)">
+                            <div class="mb-6">
+                                <label class="block text-sm font-bold text-stone-700 mb-2">Nama Lengkap / Panggilan</label>
+                                <input type="text" id="loginBuyerName" value="${window.buyerName}" required placeholder="Masukkan nama..." class="w-full p-4 border border-stone-300 rounded-xl focus:ring-2 focus:ring-amber-600 focus:outline-none">
+                            </div>
+                            <button type="submit" class="w-full bg-stone-900 hover:bg-amber-600 text-white font-bold py-4 rounded-xl transition-all shadow-lg mb-3">
+                                Mulai Pesan
+                            </button>
+                            <button type="button" onclick="setView('landing')" class="w-full text-stone-500 font-bold py-3 hover:text-stone-900 transition-all">
+                                Kembali
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.renderLoginAdminView = function() {
+            return `
+                <div class="min-h-screen flex items-center justify-center bg-stone-900 p-6 absolute inset-0 z-50 animate-fade-in">
+                    <div class="bg-white p-8 md:p-10 rounded-3xl max-w-md w-full shadow-2xl text-stone-900">
+                        <div class="flex items-center gap-2 mb-6">
+                            <span class="bg-stone-900 p-2 rounded-lg text-white">${window.icons.coffee}</span>
+                            <h2 class="text-2xl font-bold font-serif italic">Admin Panel</h2>
+                        </div>
+                        <p class="text-xs text-amber-600 bg-amber-50 p-3 rounded-lg mb-6 border border-amber-200">Demo: Username <b>admin</b>, Password <b>admin123</b></p>
+                        <form onsubmit="handleAdminLogin(event)">
+                            <div class="space-y-4 mb-8">
+                                <div>
+                                    <label class="block text-sm font-bold text-stone-700 mb-1">Username</label>
+                                    <input type="text" id="adminUser" required class="w-full p-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-amber-600 focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-bold text-stone-700 mb-1">Password</label>
+                                    <input type="password" id="adminPass" required class="w-full p-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-amber-600 focus:outline-none">
+                                </div>
+                            </div>
+                            <button type="submit" class="w-full bg-stone-900 hover:bg-amber-600 text-white font-bold py-4 rounded-xl transition-all shadow-lg mb-3">
+                                Masuk Dashboard
+                            </button>
+                            <button type="button" onclick="setView('landing')" class="w-full text-stone-500 font-bold py-3 hover:text-stone-900 transition-all">
+                                Batal
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.renderAdminDashboard = function() {
+            let filteredOrders = window.orders;
+            let totalPendapatan = 0;
+            
+            if (window.adminFilterDate) {
+                filteredOrders = window.orders.filter(order => {
+                    const tzOffset = new Date(order.created_at).getTimezoneOffset() * 60000;
+                    const localDate = new Date(new Date(order.created_at) - tzOffset).toISOString().split('T')[0];
+                    return localDate === window.adminFilterDate;
+                });
+            }
+            
+            filteredOrders.forEach(o => totalPendapatan += o.total);
+
+            const menuListHtml = window.menuItems.map(item => {
+                if (window.editingMenuId === item.id) {
+                    const imgPreview = item.image.length > 10 
+                        ? `<img src="${item.image}" class="h-10 w-10 object-cover inline-block ml-2 rounded shadow-sm border border-stone-200">` 
+                        : `<span class="inline-block ml-2 text-2xl">${item.image}</span>`;
+
+                    return `
+                        <div class="bg-amber-50 p-4 rounded-xl border border-amber-300 mb-4 shadow-sm animate-fade-in no-print">
+                            <h4 class="font-bold text-amber-900 mb-3">Edit Item #${item.id}</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                                <div>
+                                    <label class="text-xs font-bold">Nama Produk</label>
+                                    <input type="text" id="edit-name-${item.id}" value="${item.name}" class="w-full p-2 text-sm border rounded mt-1">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-bold">Harga (Rp)</label>
+                                    <input type="number" id="edit-price-${item.id}" value="${item.price}" class="w-full p-2 text-sm border rounded mt-1">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-bold">Stok Realtime</label>
+                                    <input type="number" id="edit-stock-${item.id}" value="${item.stock}" class="w-full p-2 text-sm border rounded mt-1 font-bold text-amber-600">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-bold">Upload Foto Produk</label>
+                                    <input type="file" id="edit-image-file-${item.id}" accept="image/*" class="w-full p-1 text-sm border rounded mt-1 bg-white">
+                                    <div class="mt-1 text-xs text-stone-500 flex items-center">Saat ini: ${imgPreview}</div>
+                                </div>
+                            </div>
+                            <div class="mb-4">
+                                <label class="text-xs font-bold">Deskripsi Singkat</label>
+                                <textarea id="edit-desc-${item.id}" class="w-full p-2 text-sm border rounded mt-1" rows="2">${item.desc}</textarea>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="saveMenu(${item.id})" class="bg-green-600 hover:bg-green-700 text-white text-sm font-bold py-2 px-4 rounded transition">Simpan ke Cloud</button>
+                                <button onclick="cancelEditMenu()" class="bg-stone-300 hover:bg-stone-400 text-stone-800 text-sm font-bold py-2 px-4 rounded transition">Batal</button>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                return `
+                    <div class="flex items-center justify-between border-b border-stone-100 py-3 hover:bg-stone-50 px-2 rounded-lg transition no-print">
+                        <div class="flex items-center gap-3">
+                            <div class="text-3xl bg-stone-100 w-12 h-12 flex items-center justify-center rounded-lg overflow-hidden shrink-0">
+                                ${item.image.length > 10 ? `<img src="${item.image}" class="w-full h-full object-cover">` : item.image}
+                            </div>
+                            <div>
+                                <p class="font-bold text-sm">${item.name}</p>
+                                <p class="text-xs text-stone-500">${window.formatRupiah(item.price)} • Stok: <span class="${item.stock < 5 ? 'text-red-600 font-bold' : 'text-green-600 font-bold'}">${item.stock}</span></p>
+                            </div>
+                        </div>
+                        <button onclick="editMenu(${item.id})" class="text-amber-600 text-sm font-bold hover:underline px-3 py-1 bg-amber-50 rounded-lg border border-amber-100">Edit</button>
+                    </div>
+                `;
+            }).join('');
+
+            const currentLogoPreview = window.appLogoUrl 
+                ? `<img src="${window.appLogoUrl}" class="h-10 w-10 object-cover rounded shadow-sm border border-stone-200 mt-2">`
+                : `<span class="text-xs text-stone-500 mt-2 block">Belum ada logo (Menggunakan icon default)</span>`;
+
+            return `
+                <div class="min-h-screen bg-stone-100 p-4 md:p-8 animate-fade-in absolute inset-0 z-50 overflow-y-auto">
+                    <div class="max-w-5xl mx-auto">
+                        <div class="flex justify-between items-center mb-8 bg-white p-4 rounded-2xl shadow-sm no-print">
+                            <div class="flex items-center gap-3">
+                                <div class="bg-stone-900 p-2 rounded-xl text-white">${window.icons.coffee}</div>
+                                <div>
+                                    <h2 class="text-2xl font-bold text-stone-900 font-serif italic">Dashboard Admin</h2>
+                                    <p class="text-stone-500 text-xs">Sinkronisasi Cloud Database Aktif</p>
+                                </div>
+                            </div>
+                            <button onclick="setView('landing')" class="bg-stone-100 text-stone-600 px-5 py-2 rounded-xl font-bold shadow-sm hover:bg-red-500 hover:text-white transition">Logout</button>
+                        </div>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <!-- Kolom Kiri: Pengaturan Umum -->
+                            <div class="bg-white p-6 rounded-2xl shadow-sm border border-stone-200 h-fit no-print">
+                                <h3 class="text-xl font-bold mb-4 flex items-center gap-2 font-serif italic">${window.icons.info} Pengaturan Toko</h3>
+                                <form onsubmit="saveAdminSettings(event)" class="space-y-4">
+                                    <div class="p-4 bg-amber-50 rounded-xl border border-amber-100">
+                                        <label class="block text-sm font-bold text-amber-900 mb-1">Upload Logo Toko</label>
+                                        <input type="file" id="setLogoFile" accept="image/*" class="w-full p-2 border border-amber-200 bg-white rounded-md text-sm focus:outline-none focus:border-amber-600">
+                                        ${currentLogoPreview}
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-bold text-stone-700 mb-1">Nomor WhatsApp Admin</label>
+                                        <div class="flex">
+                                            <span class="inline-flex items-center px-3 text-sm text-stone-500 bg-stone-100 border border-r-0 border-stone-300 rounded-l-md">+</span>
+                                            <input type="text" id="setWa" value="${window.adminWa}" class="w-full p-2 border border-stone-300 rounded-r-md text-sm focus:outline-none" placeholder="628123...">
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-bold text-stone-700 mb-1">Teks "Tentang Kami"</label>
+                                        <textarea id="setAbout" rows="4" class="w-full p-2 border border-stone-300 rounded-md text-sm focus:outline-none">${window.aboutText}</textarea>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-bold text-stone-700 mb-1">Ket. Langsung Kirim</label>
+                                        <textarea id="setInstant" rows="2" class="w-full p-2 border border-stone-300 rounded-md text-sm focus:outline-none">${window.instantText}</textarea>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-bold text-stone-700 mb-1">Ket. Open Order (PO)</label>
+                                        <textarea id="setPo" rows="2" class="w-full p-2 border border-stone-300 rounded-md text-sm focus:outline-none">${window.poText}</textarea>
+                                    </div>
+                                    <button type="submit" class="w-full bg-stone-900 text-white font-bold py-3 rounded-lg hover:bg-amber-600 transition shadow">Simpan Pengaturan</button>
+                                </form>
+                            </div>
+
+                            <!-- Kolom Kanan: Manajemen Menu -->
+                            <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-stone-200 no-print">
+                                <h3 class="text-xl font-bold mb-4 flex items-center gap-2 font-serif italic">${window.icons.package} Manajemen Menu & Stok</h3>
+                                <div class="space-y-1">
+                                    ${menuListHtml}
+                                </div>
+                            </div>
+                            
+                            <!-- Rekap Pesanan dengan Filter & Print -->
+                            <div id="recap-section" class="lg:col-span-3 bg-white p-6 rounded-2xl shadow-sm border border-stone-200 mt-2">
+                                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                                    <h3 class="text-xl font-bold flex items-center gap-2 font-serif italic m-0">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-600"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                                        Rekap Pesanan
+                                    </h3>
+                                    
+                                    <!-- Aksi Filter dan Tombol -->
+                                    <div class="flex flex-wrap items-center gap-3 no-print w-full sm:w-auto">
+                                        <div class="flex items-center gap-2 bg-stone-50 p-1.5 rounded-lg border border-stone-200">
+                                            <label class="text-xs font-bold text-stone-600 px-1">Filter:</label>
+                                            <input type="date" value="${window.adminFilterDate}" onchange="setAdminFilterDate(event)" class="text-xs p-1 border-none bg-transparent focus:outline-none focus:ring-0">
+                                            ${window.adminFilterDate ? `<button onclick="setAdminFilterDate({target:{value:''}})" class="text-[10px] bg-stone-200 px-2 py-1 rounded text-stone-600 hover:bg-stone-300">Clear</button>` : ''}
+                                        </div>
+                                        <button onclick="printRekap()" class="bg-stone-900 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-stone-700 flex items-center gap-2 transition">
+                                            ${window.icons.printer} Cetak
+                                        </button>
+                                        <button onclick="resetOrders()" class="bg-red-50 text-red-600 border border-red-200 px-3 py-2 rounded-lg text-xs font-bold hover:bg-red-100 flex items-center gap-2 transition">
+                                            ${window.icons.trash} Reset
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-left text-sm text-stone-600 border-collapse">
+                                        <thead class="bg-stone-100 text-stone-800 uppercase text-xs">
+                                            <tr>
+                                                <th class="p-3 border-b border-stone-200">Waktu Masuk</th>
+                                                <th class="p-3 border-b border-stone-200">Order ID / Pembeli</th>
+                                                <th class="p-3 border-b border-stone-200">Tipe / Tgl Kirim</th>
+                                                <th class="p-3 border-b border-stone-200">Item Pesanan</th>
+                                                <th class="p-3 border-b border-stone-200">Metode</th>
+                                                <th class="p-3 border-b border-stone-200 text-right">Total</th>
+                                                <th class="p-3 border-b border-stone-200 text-center no-print">Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-stone-100">
+                                            ${filteredOrders.length > 0 ? filteredOrders.map(order => `
+                                                <tr class="hover:bg-stone-50 transition-colors">
+                                                    <td class="p-3 whitespace-nowrap text-xs">${new Date(order.created_at).toLocaleString('id-ID')}</td>
+                                                    <td class="p-3">
+                                                        <div class="font-bold text-stone-900">${order.buyer_name}</div>
+                                                        <div class="text-xs text-stone-400 font-mono">${order.id}</div>
+                                                    </td>
+                                                    <td class="p-3">
+                                                        <span class="${order.type === 'instant' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'} px-2 py-1 rounded text-[10px] font-bold uppercase border border-${order.type === 'instant' ? 'green' : 'amber'}-200">${order.type}</span>
+                                                        <div class="text-xs mt-1 font-medium">${order.delivery_date} <br> Jam: ${order.delivery_time}</div>
+                                                    </td>
+                                                    <td class="p-3 text-xs">
+                                                        <ul class="list-disc list-inside">
+                                                            ${order.items.map(i => `<li>${i.quantity}x ${i.name}</li>`).join('')}
+                                                        </ul>
+                                                    </td>
+                                                    <td class="p-3 uppercase font-bold text-xs">${order.payment_method}</td>
+                                                    <td class="p-3 font-bold text-amber-600 text-right">${window.formatRupiah(order.total)}</td>
+                                                    <td class="p-3 text-center no-print">
+                                                        <button type="button" onclick="deleteOrder('${order.id}')" title="Hapus Pesanan Ini" class="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-2 rounded-lg transition inline-flex items-center justify-center">
+                                                            ${window.icons.trash}
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            `).join('') : `
+                                                <tr>
+                                                    <td colspan="7" class="p-8 text-center text-stone-400 italic">Belum ada pesanan pada tanggal ini.</td>
+                                                </tr>
+                                            `}
+                                        </tbody>
+                                        ${filteredOrders.length > 0 ? `
+                                        <tfoot class="bg-stone-50 border-t-2 border-stone-200">
+                                            <tr>
+                                                <td colspan="6" class="p-3 text-right font-bold text-stone-800">TOTAL PENDAPATAN :</td>
+                                                <td class="p-3 text-right font-bold text-amber-600 text-base">${window.formatRupiah(totalPendapatan)}</td>
+                                            </tr>
+                                        </tfoot>
+                                        ` : ''}
+                                    </table>
+                                </div>
+                                <div class="mt-4 text-xs text-stone-400 text-center hidden" style="display: none;" id="print-footer">
+                                    Laporan Dicetak pada: ${new Date().toLocaleString('id-ID')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.renderAboutView = function() {
+            return `
+                <div class="max-w-3xl mx-auto bg-white p-8 md:p-12 rounded-3xl border border-stone-200 shadow-xl animate-fade-in text-center mt-8 md:mt-12">
+                    <p class="text-amber-600 font-bold mb-2">Selamat datang, ${window.buyerName}!</p>
+                    <h2 class="text-3xl font-bold mb-6 italic font-serif text-stone-900">Tentang Mozzart Coffee</h2>
+                    <div class="w-full h-64 bg-stone-100 rounded-2xl mb-8 flex items-center justify-center overflow-hidden border border-stone-200 shadow-inner">
+                        ${window.appLogoUrl ? `<img src="${window.appLogoUrl}" class="w-full h-full object-cover opacity-90">` : `<span class="text-7xl">☕✨</span>`}
+                    </div>
+                    <p class="text-stone-600 leading-relaxed mb-6 text-lg whitespace-pre-line">${window.aboutText}</p>
+                    <div class="bg-amber-50 rounded-2xl p-6 mb-10 text-left border border-amber-100">
+                        <h3 class="font-bold text-amber-800 mb-3 flex items-center gap-2">${window.icons.package} Opsi Pengiriman</h3>
+                        <ul class="text-amber-800/80 space-y-3 text-sm">
+                            <li class="flex items-start gap-2">
+                                <span class="bg-amber-200 p-1 rounded-md text-amber-900">⚡</span>
+                                <span><strong>Langsung Dikirim:</strong> ${window.instantText}</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="bg-amber-200 p-1 rounded-md text-amber-900">📅</span>
+                                <span><strong>Open Order (Pre-Order):</strong> ${window.poText}</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <button onclick="setView('menu')" class="bg-stone-900 hover:bg-amber-600 text-white font-bold py-4 px-10 rounded-2xl text-lg transition-all shadow-lg w-full md:w-auto flex items-center justify-center gap-2 mx-auto">
+                        Lihat Menu Kami ${window.icons.chevronRight}
+                    </button>
+                </div>
+            `;
+        }
+
+        window.renderHeader = function() {
+            const headerLogo = window.appLogoUrl 
+                ? `<img src="${window.appLogoUrl}" class="h-10 w-10 object-cover rounded-full bg-white p-0.5 shadow-sm">`
+                : `<div class="bg-amber-600 p-2 rounded-full text-white">${window.icons.coffee}</div>`;
+
+            return `
+                <header class="bg-stone-900 text-white p-4 sticky top-0 z-40 shadow-lg no-print">
+                    <div class="max-w-6xl mx-auto flex justify-between items-center">
+                        <div class="flex items-center gap-3 cursor-pointer" onclick="setView('about')">
+                            ${headerLogo}
+                            <h1 class="text-xl md:text-2xl font-bold tracking-tight italic font-serif">MOZZART</h1>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <span class="text-sm text-stone-300 hidden md:inline">Hai, <b class="text-white">${window.buyerName}</b></span>
+                            <button onclick="logoutBuyer()" class="text-xs text-red-400 hover:text-red-300 transition-colors bg-stone-800 px-3 py-1.5 rounded-lg">
+                                Keluar
+                            </button>
+                        </div>
+                    </div>
+                </header>
+            `;
+        }
+
+        window.renderMenuView = function() {
+            const menuHtml = window.menuItems.map(item => `
+                <div class="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden hover:shadow-md transition-all ${item.stock <= 0 ? 'border-amber-300 bg-amber-50/30' : ''}">
+                    <div class="h-40 bg-stone-100 flex items-center justify-center text-6xl relative">
+                        ${item.stock <= 0 ? '<div class="absolute top-2 right-2 bg-amber-500 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm">BISA PO</div>' : ''}
+                        ${item.image.length > 10 ? `<img src="${item.image}" class="w-full h-full object-cover">` : item.image}
+                    </div>
+                    <div class="p-4">
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="text-xs font-bold text-amber-600 uppercase tracking-wider">${item.category}</span>
+                            <span class="text-xs px-2 py-1 rounded-full ${item.stock > 5 ? 'bg-green-100 text-green-700' : (item.stock > 0 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-800 font-bold')}">
+                                ${item.stock > 0 ? `Stok: ${item.stock}` : 'Stok Habis (PO)'}
+                            </span>
+                        </div>
+                        <h3 class="font-bold text-lg mb-1">${item.name}</h3>
+                        <p class="text-xs text-stone-500 mb-3 line-clamp-2 h-8">${item.desc}</p>
+                        <div class="flex justify-between items-center mt-4 border-t border-stone-100 pt-3">
+                            <span class="font-bold text-stone-900">${window.formatRupiah(item.price)}</span>
+                            <button 
+                                onclick="addToCart(${item.id})"
+                                class="px-4 py-2 rounded-xl font-medium text-sm transition-all ${item.stock > 0 ? 'bg-stone-900 text-white hover:bg-amber-600' : 'bg-amber-600 text-white hover:bg-amber-700'}"
+                            >
+                                ${item.stock > 0 ? 'Tambah' : 'Ikut PO'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            const cartItemsHtml = window.cart.length === 0 ? `
+                <div class="text-center py-12 text-stone-400">
+                    <p>Keranjang masih kosong</p>
+                    <p class="text-sm">Silakan pilih menu favoritmu</p>
+                </div>
+            ` : `
+                <div class="space-y-4 mb-6 max-h-96 overflow-y-auto pr-2">
+                    ${window.cart.map(item => `
+                        <div class="flex justify-between items-center border-b border-stone-50 pb-3">
+                            <div>
+                                <p class="font-medium text-sm">${item.name}</p>
+                                <p class="text-xs text-stone-500">${window.formatRupiah(item.price)} x ${item.quantity}</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="removeFromCart(${item.id})" class="p-1 text-stone-400 hover:text-red-500 transition-colors">
+                                    ${window.icons.trash}
+                                </button>
+                                <span class="font-bold w-4 text-center">${item.quantity}</span>
+                                <button onclick="addToCart(${item.id})" class="p-1 text-stone-400 hover:text-amber-600 transition-colors">
+                                    ${window.icons.chevronRight}
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="border-t-2 border-dashed border-stone-100 pt-4 mb-6">
+                    <div class="flex justify-between items-center">
+                        <span class="text-stone-900 font-bold">Total</span>
+                        <span class="text-xl font-bold text-amber-600">${window.formatRupiah(window.getTotalHarga())}</span>
+                    </div>
+                </div>
+                <button onclick="setView('checkout')" class="w-full bg-stone-900 text-white py-4 rounded-2xl font-bold text-lg hover:bg-amber-600 transition-all flex justify-center items-center gap-2">
+                    Lanjut Checkout
+                </button>
+            `;
+
+            return `
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in">
+                    <div class="lg:col-span-2">
+                        <h2 class="text-xl font-semibold mb-6 flex items-center gap-2 font-serif italic">
+                            ${window.icons.package} Menu Pilihan
+                        </h2>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            ${menuHtml}
+                        </div>
+                    </div>
+
+                    <div class="hidden lg:block">
+                        <div class="bg-white rounded-3xl p-6 border border-stone-200 shadow-xl sticky top-24">
+                            <h2 class="text-xl font-bold mb-6 flex items-center gap-2 font-serif italic">
+                                ${window.icons.cart} Keranjang (${window.getTotalItem()})
+                            </h2>
+                            ${cartItemsHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.renderCheckoutView = function() {
+            // Evaluasi apakah ada barang PO di dalam keranjang
+            const hasPO = window.checkIfCartHasPO();
+            
+            // Paksa orderType menjadi preorder jika terdapat barang PO
+            if (hasPO && window.orderType !== 'preorder') {
+                window.orderType = 'preorder';
+            }
+
+            return `
+                <div class="max-w-2xl mx-auto bg-white p-6 md:p-10 rounded-3xl border border-stone-200 shadow-2xl animate-fade-in">
+                    <button onclick="setView('menu')" class="text-stone-400 mb-6 flex items-center gap-1 hover:text-stone-900 text-sm font-medium">
+                        ← Kembali ke Menu
+                    </button>
+                    <h2 class="text-2xl font-bold mb-8 font-serif italic">Detail Pengiriman & Pembayaran</h2>
+                    
+                    <div class="space-y-8">
+                        <div class="bg-stone-50 p-5 rounded-2xl border border-stone-200">
+                            <h3 class="font-bold text-stone-900 mb-4 flex items-center gap-2">📍 Info Penerima</h3>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-bold text-stone-700 mb-1">Nama Pemesan</label>
+                                    <input type="text" value="${window.buyerName}" disabled class="w-full p-3 border border-stone-200 rounded-xl bg-stone-100 text-stone-500 cursor-not-allowed">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-bold text-stone-700 mb-1">Alamat Lengkap Pengiriman <span class="text-red-500">*</span></label>
+                                    <textarea id="inputAddress" placeholder="Contoh: Jl. Sudirman No.1, RT 01/02..." class="w-full p-3 border border-stone-300 rounded-xl focus:ring-1 focus:ring-amber-600 focus:outline-none" rows="3">${window.buyerAddress}</textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-bold text-stone-700 mb-1">Jam Pengiriman (Target Tiba) <span class="text-red-500">*</span></label>
+                                    <input type="time" id="inputTime" value="${window.deliveryTime}" class="w-full p-3 border border-stone-300 rounded-xl focus:ring-1 focus:ring-amber-600 focus:outline-none">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-bold text-stone-700 mb-3">Tipe Pemesanan</label>
+                            ${hasPO ? `<div class="mb-3 p-3 bg-amber-100 text-amber-800 text-sm rounded-lg border border-amber-200">⚠️ Keranjang Anda memuat produk Pre-Order. Opsi <b>Langsung Kirim</b> dimatikan sementara.</div>` : ''}
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                                <button onclick="!${hasPO} && setOrderType('instant')" class="p-4 border-2 rounded-2xl flex flex-col items-start gap-1 transition-all text-left ${window.orderType === 'instant' ? 'border-amber-600 bg-amber-50 text-amber-600' : 'border-stone-100 hover:border-stone-200'} ${hasPO ? 'opacity-50 cursor-not-allowed bg-stone-100' : ''}">
+                                    <span class="font-bold">Langsung Kirim</span>
+                                    <span class="text-xs ${window.orderType === 'instant' ? 'text-amber-600/80' : 'text-stone-500'}">
+                                        ${hasPO ? 'Tidak bisa (ada produk PO)' : 'Produksi & kirim hari ini'}
+                                    </span>
+                                </button>
+                                <button onclick="setOrderType('preorder')" class="p-4 border-2 rounded-2xl flex flex-col items-start gap-1 transition-all text-left ${window.orderType === 'preorder' ? 'border-amber-600 bg-amber-50 text-amber-600' : 'border-stone-100 hover:border-stone-200'}">
+                                    <span class="font-bold">Open Order (PO)</span>
+                                    <span class="text-xs ${window.orderType === 'preorder' ? 'text-amber-600/80' : 'text-stone-500'}">Pesan di awal untuk besok/lusa</span>
+                                </button>
+                            </div>
+                            
+                            ${window.orderType === 'preorder' ? `
+                            <div class="animate-fade-in bg-stone-50 p-4 rounded-2xl border border-stone-200 mt-2">
+                                <label class="block text-sm font-bold text-stone-700 mb-2">Pilih Tanggal Pengiriman PO</label>
+                                <input type="date" onchange="setPreorderDate(event)" value="${window.preorderDate}" min="${window.getTomorrowDate()}" class="w-full p-3 border border-stone-300 rounded-xl focus:outline-none focus:border-amber-600 transition-colors bg-white">
+                            </div>
+                            ` : ''}
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-bold text-stone-700 mb-3">Metode Pembayaran</label>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <button onclick="setPaymentMethod('va')" class="p-4 border-2 rounded-2xl flex items-center gap-3 transition-all ${window.paymentMethod === 'va' ? 'border-amber-600 bg-amber-50 text-amber-600' : 'border-stone-100 hover:border-stone-200'}">
+                                    <div class="bg-stone-100 p-2 rounded-lg text-stone-700 ${window.paymentMethod === 'va' ? 'text-amber-600 bg-amber-100' : ''}">🏦</div>
+                                    <div class="text-left">
+                                        <span class="block font-bold text-sm">Transfer Bank / VA</span>
+                                        <span class="block text-xs text-stone-500">BCA, Mandiri, BNI, dll</span>
+                                    </div>
+                                </button>
+                                <button onclick="setPaymentMethod('qris')" class="p-4 border-2 rounded-2xl flex items-center gap-3 transition-all ${window.paymentMethod === 'qris' ? 'border-amber-600 bg-amber-50 text-amber-600' : 'border-stone-100 hover:border-stone-200'}">
+                                    <div class="bg-stone-100 p-2 rounded-lg text-stone-700 ${window.paymentMethod === 'qris' ? 'text-amber-600 bg-amber-100' : ''}">📱</div>
+                                    <div class="text-left">
+                                        <span class="block font-bold text-sm">QRIS</span>
+                                        <span class="block text-xs text-stone-500">Gopay, OVO, Dana, M-Banking</span>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="border-t border-stone-200 pt-6">
+                            <div class="flex justify-between text-xl font-bold mb-8">
+                                <span>Total Tagihan</span>
+                                <span class="text-amber-600">${window.formatRupiah(window.getTotalHarga())}</span>
+                            </div>
+                            <button onclick="handleCheckout()" class="w-full bg-stone-900 text-white py-4 rounded-2xl font-bold text-lg hover:bg-amber-600 transition-all shadow-lg flex justify-center items-center gap-2">
+                                Proses Pesanan
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.renderSuccessView = function() {
+            if (!window.orderDetail) return '';
+
+            const itemsHtml = window.orderDetail.items.map(item => `
+                <div class="flex justify-between text-sm py-1">
+                    <span>${item.quantity}x ${item.name}</span>
+                    <span class="font-medium">${window.formatRupiah(item.price * item.quantity)}</span>
+                </div>
+            `).join('');
+
+            return `
+                <div class="max-w-lg mx-auto text-center py-10 md:py-16 animate-fade-in">
+                    <div class="bg-green-100 text-green-600 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+                        ${window.icons.checkCircle}
+                    </div>
+                    <h2 class="text-3xl font-bold mb-2 italic font-serif">Pesanan Disimpan!</h2>
+                    <p class="text-stone-500 mb-8 px-4 text-sm">
+                        Langkah terakhir: Konfirmasi pesanan Anda ke Admin via WhatsApp untuk mendapatkan instruksi pembayaran (${window.paymentMethod === 'va' ? 'Nomor Virtual Account' : 'Barcode QRIS'}).
+                    </p>
+                    
+                    <div class="bg-white p-6 rounded-3xl border border-stone-200 text-left shadow-lg mb-8 mx-4">
+                        <div class="flex justify-between border-b border-stone-100 pb-3 mb-3">
+                            <span class="text-xs text-stone-400">Order ID</span>
+                            <span class="text-xs font-mono font-bold uppercase">${window.orderDetail.id}</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-y-3 gap-x-4 border-b border-stone-100 pb-4 mb-4 text-sm">
+                            <div>
+                                <p class="text-xs text-stone-400">Penerima</p>
+                                <p class="font-bold">${window.buyerName}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-stone-400">Tipe / Tgl</p>
+                                <p class="font-bold text-amber-600">${window.orderDetail.type === 'instant' ? 'Langsung Kirim' : 'PO: ' + window.orderDetail.date}</p>
+                            </div>
+                            <div class="col-span-2">
+                                <p class="text-xs text-stone-400">Alamat Lengkap</p>
+                                <p class="font-medium text-stone-700">${window.orderDetail.address}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-stone-400">Jam Tiba</p>
+                                <p class="font-medium text-stone-700">${window.orderDetail.deliveryTime} WIB</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-stone-400">Pembayaran</p>
+                                <p class="font-medium text-stone-700 uppercase">${window.paymentMethod}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <p class="text-xs text-stone-400 mb-2">Ringkasan Item</p>
+                            ${itemsHtml}
+                        </div>
+                        <div class="flex justify-between font-bold text-lg border-t border-stone-100 pt-3">
+                            <span>Total</span>
+                            <span class="text-amber-600">${window.formatRupiah(window.orderDetail.total)}</span>
+                        </div>
+                    </div>
+
+                    <a href="${window.generateWALink()}" target="_blank" class="mx-4 block bg-green-500 hover:bg-green-600 text-white font-bold py-4 rounded-2xl transition-all shadow-lg mb-4 flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 1.828 6.362L0 24l5.807-1.802A12 12 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 11.944 0zm.056 21.841c-1.865 0-3.665-.487-5.263-1.42l-.377-.22-3.87 1.202 1.222-3.72-.244-.383A9.8 9.8 0 0 1 2.158 12C2.158 6.561 6.593 2.159 12 2.159 17.407 2.159 21.842 6.56 21.842 12s-4.435 9.841-9.842 9.841zm5.35-7.235c-.292-.146-1.74-.86-2.01-.957-.27-.098-.466-.146-.66.146-.196.293-.76 1.01-.93 1.218-.173.208-.346.233-.64.086-2.02-1.01-3.32-2.193-4.59-4.394-.173-.302-.016-.464.128-.61.13-.135.293-.34.44-.51.146-.17.195-.292.293-.487.098-.195.05-.366-.024-.512-.073-.146-.66-1.585-.904-2.17-.235-.57-.478-.493-.66-.502l-.56-.01c-.195 0-.512.073-.78.366-.268.292-1.025.998-1.025 2.43 0 1.433 1.05 2.818 1.196 3.013.146.195 2.05 3.12 4.962 4.38 1.93.834 2.65.952 3.61.802.816-.128 2.535-1.037 2.89-2.038.353-1.002.353-1.86.246-2.038-.106-.18-.39-.283-.683-.43z"/></svg>
+                        Kirim Order via WhatsApp
+                    </a>
+
+                    <button onclick="setView('landing')" class="text-stone-500 font-bold hover:text-stone-900 transition text-sm">
+                        Mulai dari Awal
+                    </button>
+                </div>
+            `;
+        }
+
+        window.renderMobileCart = function() {
+            if (window.view !== 'menu' || window.cart.length === 0) return '';
+            
+            return `
+                <div class="lg:hidden fixed bottom-6 left-6 right-6 z-40 animate-fade-in no-print">
+                    <button onclick="setView('checkout')" class="w-full bg-stone-900 text-white p-5 rounded-2xl flex justify-between items-center shadow-2xl active:scale-95 transition-all">
+                        <div class="flex items-center gap-3">
+                            <div class="bg-amber-600 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold">
+                                ${window.getTotalItem()}
+                            </div>
+                            <span class="font-bold">Checkout</span>
+                        </div>
+                        <span class="font-bold text-lg">${window.formatRupiah(window.getTotalHarga())}</span>
+                    </button>
+                </div>
+            `;
+        }
+
+        window.render = function() {
+            const appContainer = document.getElementById('app');
+            
+            let mainContent = '';
+            if (window.view === 'landing') mainContent = window.renderLandingView();
+            else if (window.view === 'loginBuyer') mainContent = window.renderLoginBuyerView();
+            else if (window.view === 'loginAdmin') mainContent = window.renderLoginAdminView();
+            else if (window.view === 'admin') mainContent = window.renderAdminDashboard();
+            else if (window.view === 'about') mainContent = window.renderAboutView();
+            else if (window.view === 'menu') mainContent = window.renderMenuView();
+            else if (window.view === 'checkout') mainContent = window.renderCheckoutView();
+            else if (window.view === 'success') mainContent = window.renderSuccessView();
+
+            const hideHeader = ['landing', 'loginBuyer', 'loginAdmin', 'admin'].includes(window.view);
+
+            if (hideHeader) {
+                appContainer.innerHTML = mainContent;
+            } else {
+                appContainer.innerHTML = `
+                    ${window.renderHeader()}
+                    <main class="max-w-6xl mx-auto p-4 md:p-8">
+                        ${mainContent}
+                    </main>
+                    ${window.renderMobileCart()}
+                    <footer class="mt-12 py-8 bg-stone-100 border-t border-stone-200 text-center text-stone-400 text-sm no-print">
+                        <p>&copy; 2024 Mozzart Coffee. Crafted with Passion.</p>
+                    </footer>
+                `;
+            }
+            
+            if (window.view === 'admin') {
+                const printFooter = document.getElementById('print-footer');
+                if (printFooter) {
+                    window.addEventListener('beforeprint', () => { printFooter.style.display = 'block'; });
+                    window.addEventListener('afterprint', () => { printFooter.style.display = 'none'; });
+                }
+            }
+        }
+
+        // Mulai Render Pertama
+        window.render();
+    </script>
+</body>
+</html>
