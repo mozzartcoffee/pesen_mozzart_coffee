@@ -112,10 +112,13 @@
 
         window.appLogoUrl = ''; // State untuk URL Logo kustom
         window.adminWa = '6281234567890';
+        window.adminUser = 'admin'; // Kredensial default
+        window.adminPass = 'admin123'; // Kredensial default
         window.aboutText = 'Di Mozzart Coffee, kami percaya bahwa menyeduh kopi adalah sebuah seni layaknya menggubah sebuah simfoni. Kami menggunakan biji kopi pilihan terbaik untuk menghadirkan harmoni rasa yang sempurna di setiap tegukannya.';
         window.instantText = 'Kopi akan segera dibuat dan dikirimkan setelah pembayaran sukses (selama stok produk ready).';
         window.poText = 'Solusi untuk pemesanan esok hari atau dalam jumlah besar. Wajib order minimal H-1.';
         window.editingMenuId = null;
+        window.isAddingMenu = false; // State untuk form tambah menu
         
         // State Filter Rekap
         window.adminFilterDate = ''; 
@@ -165,6 +168,8 @@
                 if (settingData) {
                     window.appLogoUrl = settingData.logo || '';
                     window.adminWa = settingData.wa || window.adminWa;
+                    window.adminUser = settingData.admin_user || window.adminUser;
+                    window.adminPass = settingData.admin_pass || window.adminPass;
                     window.aboutText = settingData.about || window.aboutText;
                     window.instantText = settingData.instant || window.instantText;
                     window.poText = settingData.po || window.poText;
@@ -183,21 +188,21 @@
                         let isDataChanged = false;
 
                         const { data: menuData } = await supabase.from('menu').select('*').order('id', { ascending: true });
-                        if (menuData && JSON.stringify(menuData) !== JSON.stringify(window.menuItems)) {
-                            window.menuItems = menuData;
-                            isDataChanged = true;
-                        }
-
+                        // Cek perubahan Settings
                         const { data: settingData } = await supabase.from('settings').select('*').eq('id', 'store_settings').single();
                         if (settingData) {
                             if (window.appLogoUrl !== (settingData.logo || '') ||
                                 window.adminWa !== (settingData.wa || window.adminWa) ||
+                                window.adminUser !== (settingData.admin_user || window.adminUser) ||
+                                window.adminPass !== (settingData.admin_pass || window.adminPass) ||
                                 window.aboutText !== (settingData.about || window.aboutText) ||
                                 window.instantText !== (settingData.instant || window.instantText) ||
                                 window.poText !== (settingData.po || window.poText)) {
                                 
                                 window.appLogoUrl = settingData.logo || '';
                                 window.adminWa = settingData.wa || window.adminWa;
+                                window.adminUser = settingData.admin_user || window.adminUser;
+                                window.adminPass = settingData.admin_pass || window.adminPass;
                                 window.aboutText = settingData.about || window.aboutText;
                                 window.instantText = settingData.instant || window.instantText;
                                 window.poText = settingData.po || window.poText;
@@ -263,7 +268,8 @@
             e.preventDefault();
             const user = document.getElementById('adminUser').value;
             const pass = document.getElementById('adminPass').value;
-            if (user === 'admin' && pass === 'admin123') {
+            // Memeriksa dengan kredensial dinamis dari database, bukan hardcoded
+            if (user === window.adminUser && pass === window.adminPass) {
                 window.setView('admin');
             } else {
                 alert('Username atau Password salah!');
@@ -276,6 +282,10 @@
             const newAbout = document.getElementById('setAbout').value;
             const newInstant = document.getElementById('setInstant').value;
             const newPo = document.getElementById('setPo').value;
+            
+            // Mengambil input kredensial baru
+            const newUser = document.getElementById('setAdminUser').value;
+            const newPass = document.getElementById('setAdminPass').value;
             
             const fileInput = document.getElementById('setLogoFile');
             let newLogo = window.appLogoUrl; 
@@ -290,13 +300,16 @@
                 if(supabase) {
                     const { error } = await supabase.from('settings').upsert({
                         id: 'store_settings',
-                        wa: newWa, about: newAbout, instant: newInstant, po: newPo, logo: newLogo
+                        wa: newWa, about: newAbout, instant: newInstant, po: newPo, logo: newLogo,
+                        admin_user: newUser, admin_pass: newPass
                     });
                     if (error) throw error;
                     alert('Pengaturan berhasil disimpan ke Supabase Database!');
                 } else {
                     window.appLogoUrl = newLogo;
                     window.adminWa = newWa;
+                    window.adminUser = newUser;
+                    window.adminPass = newPass;
                     window.aboutText = newAbout;
                     window.instantText = newInstant;
                     window.poText = newPo;
@@ -310,6 +323,7 @@
 
         window.editMenu = function(id) {
             window.editingMenuId = id;
+            window.isAddingMenu = false; // Tutup form tambah jika sedang buka form edit
             window.render();
         };
 
@@ -323,6 +337,7 @@
             const price = parseInt(document.getElementById(`edit-price-${id}`).value);
             const stock = parseInt(document.getElementById(`edit-stock-${id}`).value);
             const desc = document.getElementById(`edit-desc-${id}`).value;
+            const category = document.getElementById(`edit-category-${id}`).value;
 
             const existingItem = window.menuItems.find(i => i.id === id);
             
@@ -338,19 +353,66 @@
             try {
                 if(supabase) {
                     const { error } = await supabase.from('menu').upsert({
-                        id: Number(id), name, price, stock, image, desc, category: existingItem.category
+                        id: Number(id), name, price, stock, image, desc, category: category
                     });
                     if (error) throw error;
                     window.cancelEditMenu();
                 } else {
                     if(existingItem) {
                         existingItem.name = name; existingItem.price = price; 
-                        existingItem.stock = stock; existingItem.image = image; existingItem.desc = desc;
+                        existingItem.stock = stock; existingItem.image = image; existingItem.desc = desc; existingItem.category = category;
                     }
                     window.cancelEditMenu();
                 }
             } catch (err) {
                 alert('Gagal menyimpan menu: ' + err.message);
+            }
+        };
+
+        // --- FITUR BARU: TAMBAH MENU ---
+        window.toggleAddMenu = function() {
+            window.isAddingMenu = !window.isAddingMenu;
+            window.editingMenuId = null; // Tutup form edit jika sedang buka form tambah
+            window.render();
+        };
+
+        window.saveNewMenu = async function() {
+            const name = document.getElementById('add-name').value;
+            const price = parseInt(document.getElementById('add-price').value);
+            const stock = parseInt(document.getElementById('add-stock').value);
+            const desc = document.getElementById('add-desc').value;
+            const category = document.getElementById('add-category').value;
+            
+            if (!name || isNaN(price) || isNaN(stock)) return alert('Mohon lengkapi Nama, Harga, dan Stok!');
+
+            const fileInput = document.getElementById('add-image-file');
+            let image = '☕'; // Default icon jika tidak upload gambar
+            
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                if (file.size > 2000000) return alert('Ukuran gambar maksimal 2MB!');
+                image = await window.fileToBase64(file);
+            }
+
+            // Generate ID Baru (Cari ID tertinggi lalu tambah 1)
+            const newId = window.menuItems.length > 0 ? Math.max(...window.menuItems.map(i => i.id)) + 1 : 1;
+
+            const newItem = {
+                id: newId, name, price, stock, image, desc, category
+            };
+
+            try {
+                if(supabase) {
+                    const { error } = await supabase.from('menu').insert([newItem]);
+                    if (error) throw error;
+                    window.toggleAddMenu();
+                } else {
+                    window.menuItems.push(newItem);
+                    window.toggleAddMenu();
+                }
+                alert('Produk berhasil ditambahkan!');
+            } catch (err) {
+                alert('Gagal menambah menu baru: ' + err.message);
             }
         };
 
@@ -609,7 +671,6 @@
                             <span class="bg-stone-900 p-2 rounded-lg text-white">${window.icons.coffee}</span>
                             <h2 class="text-2xl font-bold font-serif italic">Admin Panel</h2>
                         </div>
-                        <p class="text-xs text-amber-600 bg-amber-50 p-3 rounded-lg mb-6 border border-amber-200">Demo: Username <b>admin</b>, Password <b>admin123</b></p>
                         <form onsubmit="handleAdminLogin(event)">
                             <div class="space-y-4 mb-8">
                                 <div>
@@ -662,6 +723,15 @@
                                     <input type="text" id="edit-name-${item.id}" value="${item.name}" class="w-full p-2 text-sm border rounded mt-1">
                                 </div>
                                 <div>
+                                    <label class="text-xs font-bold">Kategori</label>
+                                    <select id="edit-category-${item.id}" class="w-full p-2 text-sm border rounded mt-1 bg-white">
+                                        <option value="Coffee" ${item.category === 'Coffee' ? 'selected' : ''}>Coffee</option>
+                                        <option value="Non-Coffee" ${item.category === 'Non-Coffee' ? 'selected' : ''}>Non-Coffee</option>
+                                        <option value="Pastry" ${item.category === 'Pastry' ? 'selected' : ''}>Pastry</option>
+                                        <option value="Lainnya" ${item.category === 'Lainnya' ? 'selected' : ''}>Lainnya</option>
+                                    </select>
+                                </div>
+                                <div>
                                     <label class="text-xs font-bold">Harga (Rp)</label>
                                     <input type="number" id="edit-price-${item.id}" value="${item.price}" class="w-full p-2 text-sm border rounded mt-1">
                                 </div>
@@ -669,7 +739,7 @@
                                     <label class="text-xs font-bold">Stok Realtime</label>
                                     <input type="number" id="edit-stock-${item.id}" value="${item.stock}" class="w-full p-2 text-sm border rounded mt-1 font-bold text-amber-600">
                                 </div>
-                                <div>
+                                <div class="md:col-span-2">
                                     <label class="text-xs font-bold">Upload Foto Produk</label>
                                     <input type="file" id="edit-image-file-${item.id}" accept="image/*" class="w-full p-1 text-sm border rounded mt-1 bg-white">
                                     <div class="mt-1 text-xs text-stone-500 flex items-center">Saat ini: ${imgPreview}</div>
@@ -694,7 +764,7 @@
                                 ${item.image.length > 10 ? `<img src="${item.image}" class="w-full h-full object-cover">` : item.image}
                             </div>
                             <div>
-                                <p class="font-bold text-sm">${item.name}</p>
+                                <p class="font-bold text-sm">${item.name} <span class="ml-1 text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-sm bg-stone-200 text-stone-600">${item.category}</span></p>
                                 <p class="text-xs text-stone-500">${window.formatRupiah(item.price)} • Stok: <span class="${item.stock < 5 ? 'text-red-600 font-bold' : 'text-green-600 font-bold'}">${item.stock}</span></p>
                             </div>
                         </div>
@@ -702,6 +772,52 @@
                     </div>
                 `;
             }).join('');
+
+            // Tampilan Form Tambah Menu Baru
+            const addMenuFormHtml = window.isAddingMenu ? `
+                <div class="bg-green-50 p-4 rounded-xl border border-green-300 mb-6 shadow-sm animate-fade-in no-print">
+                    <h4 class="font-bold text-green-900 mb-3 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                        Tambah Produk Baru
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                        <div>
+                            <label class="text-xs font-bold">Nama Produk *</label>
+                            <input type="text" id="add-name" placeholder="Mis: Kopi Susu Aren" class="w-full p-2 text-sm border rounded mt-1">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold">Kategori *</label>
+                            <select id="add-category" class="w-full p-2 text-sm border rounded mt-1 bg-white">
+                                <option value="Coffee">Coffee</option>
+                                <option value="Non-Coffee">Non-Coffee</option>
+                                <option value="Pastry">Pastry</option>
+                                <option value="Lainnya">Lainnya</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold">Harga (Rp) *</label>
+                            <input type="number" id="add-price" placeholder="Mis: 20000" class="w-full p-2 text-sm border rounded mt-1">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold">Stok Awal *</label>
+                            <input type="number" id="add-stock" placeholder="Mis: 10" class="w-full p-2 text-sm border rounded mt-1 font-bold text-green-600">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="text-xs font-bold">Upload Foto Produk (Opsional)</label>
+                            <input type="file" id="add-image-file" accept="image/*" class="w-full p-1 text-sm border rounded mt-1 bg-white">
+                            <p class="text-[10px] text-stone-500 mt-1">Biarkan kosong jika ingin menggunakan ikon default.</p>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="text-xs font-bold">Deskripsi Singkat</label>
+                        <textarea id="add-desc" class="w-full p-2 text-sm border rounded mt-1" rows="2" placeholder="Tuliskan deksripsi rasa produk ini..."></textarea>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="saveNewMenu()" class="bg-green-600 hover:bg-green-700 text-white text-sm font-bold py-2 px-4 rounded transition">Simpan Produk Baru</button>
+                        <button onclick="toggleAddMenu()" class="bg-stone-300 hover:bg-stone-400 text-stone-800 text-sm font-bold py-2 px-4 rounded transition">Batal</button>
+                    </div>
+                </div>
+            ` : '';
 
             const currentLogoPreview = window.appLogoUrl 
                 ? `<img src="${window.appLogoUrl}" class="h-10 w-10 object-cover rounded shadow-sm border border-stone-200 mt-2">`
@@ -726,6 +842,20 @@
                             <div class="bg-white p-6 rounded-2xl shadow-sm border border-stone-200 h-fit no-print">
                                 <h3 class="text-xl font-bold mb-4 flex items-center gap-2 font-serif italic">${window.icons.info} Pengaturan Toko</h3>
                                 <form onsubmit="saveAdminSettings(event)" class="space-y-4">
+                                    <div class="p-4 bg-red-50 rounded-xl border border-red-100 mb-4">
+                                        <h4 class="font-bold text-red-900 mb-3 text-sm">Keamanan Akun Admin</h4>
+                                        <div class="space-y-3">
+                                            <div>
+                                                <label class="block text-xs font-bold text-red-800 mb-1">Username Admin</label>
+                                                <input type="text" id="setAdminUser" value="${window.adminUser}" required class="w-full p-2 border border-red-200 rounded-md text-sm focus:outline-none focus:border-red-600 bg-white">
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-bold text-red-800 mb-1">Password Admin</label>
+                                                <input type="text" id="setAdminPass" value="${window.adminPass}" required class="w-full p-2 border border-red-200 rounded-md text-sm focus:outline-none focus:border-red-600 bg-white">
+                                                <p class="text-[10px] text-red-600 mt-1 leading-tight">Pastikan Anda mengingat kombinasi ini! Jika lupa, Anda tidak akan bisa masuk ke panel admin.</p>
+                                            </div>
+                                        </div>
+                                    </div>
                                     <div class="p-4 bg-amber-50 rounded-xl border border-amber-100">
                                         <label class="block text-sm font-bold text-amber-900 mb-1">Upload Logo Toko</label>
                                         <input type="file" id="setLogoFile" accept="image/*" class="w-full p-2 border border-amber-200 bg-white rounded-md text-sm focus:outline-none focus:border-amber-600">
@@ -756,7 +886,14 @@
 
                             <!-- Kolom Kanan: Manajemen Menu -->
                             <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-stone-200 no-print">
-                                <h3 class="text-xl font-bold mb-4 flex items-center gap-2 font-serif italic">${window.icons.package} Manajemen Menu & Stok</h3>
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="text-xl font-bold flex items-center gap-2 font-serif italic">${window.icons.package} Manajemen Stok</h3>
+                                    <button onclick="toggleAddMenu()" class="bg-stone-900 text-white hover:bg-amber-600 text-xs font-bold px-3 py-2 rounded-lg transition shadow-sm flex items-center gap-1">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                                        Tambah Produk
+                                    </button>
+                                </div>
+                                ${addMenuFormHtml}
                                 <div class="space-y-1">
                                     ${menuListHtml}
                                 </div>
